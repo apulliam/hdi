@@ -1,0 +1,33 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "baseClusterName": {
+      "value": "test"
+    },
+    "clusterLoginPassword": {
+      "value": "n7923n@ATL"
+    },
+    "sshPublicKey": {
+      "value": "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDp/75v9AGSDcYSmdcweGO5inOlCN/iWklrSQTHc2Spgt6xDqs8MaSrlT+deFPOLqvBthm04FLneMI5ufzUoWRy8HhCgNhD7vGq4m9ofsu6VEkOiAdIVuc8WazZrzDJOB1xfXp+He7NiDagFxNk01TcYtkgTQtA6oSy3JbQGC+yjDVZWt9FA+b/bvJUrYBUauQcWFHTpwBt6HHt7TkbH57Vf6eL7X0GbcZCXD8nyhFUI4+3loaBZW5zWu1TCtuL0fc6cC+mN6m6/zuya4kNUXGNG/WOGRUbn9sZ8PuHzrWQ8VNdL5X1ZnYPx8alTJTaD/oUMb7lon1EhewGT7QO4sZJ apulliam@x1-yoga"
+    },
+    "clusterVnetNewOrExisting": {
+      "value": "new"
+    },
+    "clusterVNetName": {
+      "value": "hdi-vnet"
+    },
+    "clusterVNetResourceGroup": {
+      "value": "apulliam-vnet"
+    },
+    "clusterVNetSubnetName": {
+      "value": "default"
+    },
+    "deploySpark": {
+      "value": true
+    },
+    "deployKafka": {
+      "value": true
+    }
+  }
+}

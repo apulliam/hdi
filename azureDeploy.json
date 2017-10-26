@@ -1,0 +1,270 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "baseUrlSasToken": {
+      "type": "securestring",
+      "metadata": {
+        "description": "SAS Token of the Blob folder where artifacts are stored."
+      },
+      "defaultValue": ""
+    },
+    "deploySpark": {
+      "type": "bool",
+      "defaultValue": false,
+      "allowedValues": [
+        true, false
+      ]
+    },
+    "deployKafka": {
+      "type": "bool",
+      "defaultValue": true,
+      "allowedValues": [
+        true, false
+      ]
+    },
+    "baseClusterName": {
+      "type": "string",
+      "metadata": {
+        "description": "The base name used to create resources; spark-basename, kafka-basename, basename-vnet, basenamestore."
+      }
+    },
+    "kafkaClusterName": {
+      "type": "string",
+      "defaultValue": "[concat('kafka-', parameters('baseClusterName'), '-',uniquestring(resourceGroup().id))]"
+    },
+    "kafkaClusterVersion": {
+      "type": "string",
+      "defaultValue": "3.5"
+    },
+    "sparkClusterName": {
+      "type": "string",
+      "defaultValue": "[concat('spark-', parameters('baseClusterName'), '-',uniquestring(resourceGroup().id))]"
+    },
+    "sparkClusterVersion": {
+      "type": "string",
+      "defaultValue": "3.6"
+    },
+    "clusterLoginUserName": {
+      "type": "string",
+      "defaultValue": "admin",
+      "metadata": {
+        "description": "These credentials can be used to submit jobs to the cluster and to log into cluster dashboards."
+      }
+    },
+    "clusterLoginPassword": {
+      "type": "securestring",
+      "metadata": {
+        "description": "The password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+      }
+    },
+    "sshUserName": {
+      "type": "string",
+      "defaultValue": "sshuser",
+      "metadata": {
+        "description": "These credentials can be used to remotely access the cluster."
+      }
+    },
+    "sshPublicKey": {
+      "type": "securestring",
+      "metadata": {
+        "description": "A SSH public key."
+      }
+    },
+    "clusterVnetNewOrExisting": {
+      "type": "string",
+      "metadata": {
+        "description": "The virtual network name on which to deploy the VM.  This can be an existing virtual network."
+      },
+      "defaultValue": "new",
+      "allowedValues": [
+        "new", "existing"
+      ]
+    },
+    "clusterVNetName": {
+      "type": "string",
+      "metadata": {
+        "description": "The virtual network name on which to deploy the VM.  This can be an existing virtual network."
+      },
+      "defaultValue": "[concat(parameters('baseClusterName'),'-vnet')]"
+    },
+    "clusterVNetResourceGroup": {
+      "type": "string",
+      "metadata": {
+        "description": "The resource group of an existing virtual network on which to deploy the VM.  This is only required in an exiting virtual network name is provided."
+      },
+      "defaultValue": "[resourceGroup().name]"
+    },
+    "clusterVNetAddressSpace": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/16"
+    },
+    "clusterVNetSubnetName": {
+      "type": "string",
+      "defaultValue": "default"
+    },
+    "clusterVNetSubnetAddressRange": {
+      "type": "string",
+      "defaultValue": "10.0.0.0/24"
+    }
+  },
+  "variables": {
+    "artifacts": {
+      "vnet": "[uri(deployment().properties.templateLink.uri, concat('nested/',parameters('clusterVnetNewOrExisting'),'Vnet.json',parameters('baseUrlSasToken')))]",
+      "kafka": "[uri(deployment().properties.templateLink.uri, concat('nested/kafka.json',parameters('baseUrlSasToken')))]",
+      "spark": "[uri(deployment().properties.templateLink.uri, concat('nested/spark.json',parameters('baseUrlSasToken')))]"
+    },
+    "nestedDeployments": {
+      "vnetDeploymentName": "[concat(deployment().name,'-',parameters('clusterVnetNewOrExisting'),'Vnet')]",
+      "kafkaDeploymentName": "[concat(deployment().name,'-kafka')]",
+      "sparkDeploymentName": "[concat(deployment().name,'-spark')]"
+    },
+    "clusterStorageAccountName": "[concat(parameters('baseClusterName'),uniquestring(resourceGroup().id))]"
+  },
+  "resources": [
+    {
+      "name": "[variables('clusterStorageAccountName')]",
+      "type": "Microsoft.Storage/storageAccounts",
+      "location": "[resourceGroup().location]",
+      "apiVersion": "2015-06-15",
+      "dependsOn": [],
+      "tags": {},
+      "properties": {
+        "accountType": "Standard_LRS"
+      }
+    },
+    {
+      "name": "[variables('nestedDeployments').vnetDeploymentName]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2015-01-01",
+      "dependsOn": [],
+      "condition": "[equals(parameters('clusterVnetNewOrExisting'),'new')]",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('artifacts').vnet]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "resourceLocation": {
+            "value": "[resourceGroup().location]"
+          },
+          "virtualNetworkName": {
+            "value": "[parameters('clusterVNetName')]"
+          },
+          "subnetName": {
+            "value": "[parameters('clusterVNetSubnetName')]"
+          },
+          "addressPrefix": {
+            "value": "[parameters('clusterVNetAddressSpace')]"
+          },
+          "subnetPrefix": {
+            "value": "[parameters('clusterVNetSubnetAddressRange')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[variables('nestedDeployments').kafkaDeploymentName]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2015-01-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts',variables('clusterStorageAccountName'))]"
+      ],
+      "condition": "[parameters('deployKafka')]",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('artifacts').kafka]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "resourceLocation": {
+            "value": "[resourceGroup().location]"
+          },
+          "clusterStorageAccountName": {
+            "value": "[variables('clusterStorageAccountName')]"
+          },
+          "kafkaClusterName": {
+            "value": "[parameters('kafkaClusterName')]"
+          },
+          "kafkaClusterVersion": {
+            "value": "[parameters('kafkaClusterVersion')]"
+          },
+          "clusterLoginUserName": {
+            "value": "[parameters('clusterLoginUserName')]"
+          },
+          "clusterLoginPassword": {
+            "value": "[parameters('clusterLoginPassword')]"
+          },
+          "sshUserName": {
+            "value": "[parameters('sshUserName')]"
+          },
+          "sshPublicKey": {
+            "value": "[parameters('sshPublicKey')]"
+          },
+          "clusterVNetName": {
+            "value": "[parameters('clusterVNetName')]"
+          },
+          "clusterVNetResourceGroup": {
+            "value": "[if(equals(parameters('clusterVnetNewOrExisting'),'existing'), parameters('clusterVNetResourceGroup'), resourceGroup().name)]"
+          },
+          "clusterVNetSubnetName": {
+            "value": "[parameters('clusterVNetSubnetName')]"
+          }
+        }
+      }
+    },
+    {
+      "name": "[variables('nestedDeployments').sparkDeploymentName]",
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2015-01-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts',variables('clusterStorageAccountName'))]"
+      ],
+      "condition": "[parameters('deploySpark')]",
+      "properties": {
+        "mode": "Incremental",
+        "templateLink": {
+          "uri": "[variables('artifacts').spark]",
+          "contentVersion": "1.0.0.0"
+        },
+        "parameters": {
+          "resourceLocation": {
+            "value": "[resourceGroup().location]"
+          },
+          "clusterStorageAccountName": {
+            "value": "[variables('clusterStorageAccountName')]"
+          },
+          "sparkClusterName": {
+            "value": "[parameters('sparkClusterName')]"
+          },
+          "sparkClusterVersion": {
+            "value": "[parameters('sparkClusterVersion')]"
+          },
+          "clusterLoginUserName": {
+            "value": "[parameters('clusterLoginUserName')]"
+          },
+          "clusterLoginPassword": {
+            "value": "[parameters('clusterLoginPassword')]"
+          },
+          "sshUserName": {
+            "value": "[parameters('sshUserName')]"
+          },
+          "sshPublicKey": {
+            "value": "[parameters('sshPublicKey')]"
+          },
+          "clusterVNetName": {
+            "value": "[parameters('clusterVNetName')]"
+          },
+          "clusterVNetResourceGroup": {
+            "value": "[if(equals(parameters('clusterVnetNewOrExisting'),'existing'), parameters('clusterVNetResourceGroup'), resourceGroup().name)]"
+          },
+          "clusterVNetSubnetName": {
+            "value": "[parameters('clusterVNetSubnetName')]"
+          }
+        }
+      }
+    }
+  ]
+}

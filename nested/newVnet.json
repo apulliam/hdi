@@ -1,0 +1,52 @@
+  {
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+      "resourceLocation": {
+        "type": "string"
+      },
+      "virtualNetworkName": {
+        "type": "string",
+        "metadata": {
+          "description": "The virtual network name on which to deploy the VM.  This can be an existing virtual network."
+        }
+      },
+      "subnetName": {
+        "type": "string",
+        "metadata": {
+          "description": "The subnet on the virtual network on which to deploy the VM.  This can be an existing subnet."
+        }
+      },
+      "addressPrefix": {
+        "type": "string"
+      },
+      "subnetPrefix": {
+        "type": "string"
+      }
+    },
+    "variables": {},
+    "resources": [
+      {
+        "apiVersion": "2017-03-01",
+        "type": "Microsoft.Network/virtualNetworks",
+        "name": "[parameters('virtualNetworkName')]",
+        "location": "[parameters('resourceLocation')]",
+        "properties": {
+          "addressSpace": {
+            "addressPrefixes": [
+              "[parameters('addressPrefix')]"
+            ]
+          },
+          "subnets": [
+            {
+              "name": "[parameters('subnetName')]",
+              "properties": {
+                "addressPrefix": "[parameters('subnetPrefix')]"
+              }
+            }
+          ]
+        }
+      }
+     ]
+    
+  }
